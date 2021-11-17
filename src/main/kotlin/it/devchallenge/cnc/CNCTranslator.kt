@@ -1,5 +1,6 @@
 package it.devchallenge.cnc
 
+import it.devchallenge.BoxContour
 import it.devchallenge.Sheet
 import it.devchallenge.cnc.CommandType.DOWN
 import it.devchallenge.cnc.CommandType.GOTO
@@ -10,19 +11,19 @@ import java.awt.Point
 
 data class CNCTranslator(
     val sheet: Sheet,
-    val patterns: List<BoxPattern>
+    val contours: List<BoxContour>
 ) {
     fun commands(): List<Command> {
         val cmds = mutableListOf<Command>()
 
         cmds += Command(START)
-        for (pattern in patterns) {
-            val path = pattern.contourPath()
+        for (contour in contours) {
+            val path = contour.path()
             cmds += gotoIdle(path.first())
             for (i in 0 until path.size - 1) {
                 val curr = path[i]
                 val next = path[i + 1]
-                if (sheet.isEdge(curr, next)) {
+                if (sheet.isOnEdge(curr, next)) {
                     cmds += gotoIdle(next)
                 } else {
                     cmds += Command(GOTO, next)

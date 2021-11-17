@@ -1,31 +1,46 @@
 package it.devchallenge.cnc
 
 import it.devchallenge.Box
+import it.devchallenge.BoxContour
 import it.devchallenge.Sheet
+
+data class CNCProgram(val amount: Int, val commands: List<Command>)
 
 class CNCMachine(
     private val box: Box,
     private val sheet: Sheet
 ) {
     fun program(): CNCProgram {
-        val rowCount = sheet.w / box.unfoldedWidth()
-        val colCount = sheet.l / box.unfoldedHeight()
-        val patterns = mutableListOf<BoxPattern>()
-        repeat(rowCount) { row ->
-            repeat(colCount) { col ->
-                patterns += BoxPattern(box).apply {
-                    shift(
-                        dx = width() * row,
-                        dy = height() * col
-                    )
-                }
+        val contours = mutableListOf<BoxContour>()
+        var level = 0
+        var floor = 0
+        while (sheet.l - floor >= box.unfoldedHeight()) {
+            if (useShiftedLayout()) {
+                val dx = if (level++ % 2 != 0) box.h else 0
+                contours += placeContours(on = floor, dx = dx)
+                floor += box.unfoldedHeight() - box.h
+            } else {
+                contours += placeContours(on = floor)
+                floor += box.unfoldedHeight()
             }
         }
         return CNCProgram(
-            amount = patterns.size,
-            commands = CNCTranslator(sheet, patterns).commands()
+            amount = contours.size,
+            commands = CNCTranslator(sheet, contours).commands()
         )
     }
-}
 
-data class CNCProgram(val amount: Int, val commands: List<Command>)
+    private fun placeContours(on: Int, dx: Int = 0): List<BoxContour> {
+        val contours = mutableListOf<BoxContour>()
+        repeat(lineSize()) { col ->
+            contours += box.createContour(
+                x = box.unfoldedWidth() * col + dx,
+                y = on
+            )
+        }
+        return contours
+    }
+
+    private fun useShiftedLayout() = sheet.w - lineSize() * box.unfoldedWidth() >= box.h
+    private fun lineSize() = sheet.w / box.unfoldedWidth()
+}

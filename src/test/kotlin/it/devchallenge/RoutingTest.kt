@@ -1,4 +1,4 @@
-package it.devchallenge.api;
+package it.devchallenge;
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.ktor.application.Application
@@ -9,11 +9,14 @@ import io.ktor.http.HttpMethod.Companion.Post
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpStatusCode.Companion.OK
 import io.ktor.http.HttpStatusCode.Companion.UnprocessableEntity
-import io.ktor.server.testing.*
-import it.devchallenge.CuttingProgramTestScenariosFactory
+import io.ktor.server.testing.TestApplicationEngine
+import io.ktor.server.testing.handleRequest
+import io.ktor.server.testing.setBody
+import io.ktor.server.testing.withTestApplication
+import it.devchallenge.api.CuttingProgramRequest
 import it.devchallenge.api.CuttingProgramRequest.BoxSizeDto
 import it.devchallenge.api.CuttingProgramRequest.SheetSizeDto
-import it.devchallenge.main
+import it.devchallenge.api.CuttingProgramResponse
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -28,7 +31,7 @@ class RoutingTest {
     fun `should return expected program to all test scenarios`() =
         withTestApplication(Application::main) {
             CuttingProgramTestScenariosFactory
-                .boxTestScenarios()
+                .testScenarios()
                 .forEach { testCase ->
                     val testProgramRequest = CuttingProgramRequest(testCase.sheetSize, testCase.boxSize)
 
@@ -49,13 +52,33 @@ class RoutingTest {
         }
 
     @Test
-    fun `box size bigger than sheet size - should return 422 validation error`() {
+    fun `should return expected box amount`() {
         withTestApplication(Application::main) {
-            val response = postCall<CuttingProgramResponse>(
+            val expectedAmount = 1188
+            val testProgramRequest = CuttingProgramRequest(
+                sheetSize = SheetSizeDto(w = 2000, l = 1275),
+                boxSize = BoxSizeDto(w = 20, d = 25, h = 10)
+            )
+
+            val response = postCall<CuttingProgramResponse>(endpoint, testProgramRequest)
+
+            assertNotNull(response)
+            assertTrue(response.success!!)
+            assertNull(response.error)
+            assertEquals(expectedAmount, response.amount)
+            assertNotNull(response.program)
+        }
+    }
+
+    @Test
+    fun `box size bigger than sheet size - 422 validation error`() {
+        withTestApplication(Application::main) {
+            postCall<CuttingProgramResponse>(
                 endpoint = endpoint,
                 body = CuttingProgramRequest(
                     sheetSize = SheetSizeDto(w = 200, l = 400),
-                    boxSize = BoxSizeDto(w = 100, d = 100, h = 100)),
+                    boxSize = BoxSizeDto(w = 100, d = 100, h = 100)
+                ),
                 expectedStatus = UnprocessableEntity
             ).also { assertErrorResponse(it) }
         }
@@ -64,11 +87,12 @@ class RoutingTest {
     @Test
     fun `sheet size has zero and negative values - 422 validation error`() {
         withTestApplication(Application::main) {
-            val response = postCall<CuttingProgramResponse>(
+            postCall<CuttingProgramResponse>(
                 endpoint = endpoint,
                 body = CuttingProgramRequest(
                     sheetSize = SheetSizeDto(w = 0, l = -600),
-                    boxSize = BoxSizeDto(w = 100, d = 100, h = 100)),
+                    boxSize = BoxSizeDto(w = 100, d = 100, h = 100)
+                ),
                 expectedStatus = UnprocessableEntity
             ).also { assertErrorResponse(it) }
         }
@@ -77,11 +101,12 @@ class RoutingTest {
     @Test
     fun `box size has zero and negative values - 422 validation error`() {
         withTestApplication(Application::main) {
-            val response = postCall<CuttingProgramResponse>(
+            postCall<CuttingProgramResponse>(
                 endpoint = endpoint,
                 body = CuttingProgramRequest(
                     sheetSize = SheetSizeDto(w = 600, l = 800),
-                    boxSize = BoxSizeDto(w = 100, d = 0, h = -1)),
+                    boxSize = BoxSizeDto(w = 100, d = 0, h = -1)
+                ),
                 expectedStatus = UnprocessableEntity
             ).also { assertErrorResponse(it) }
         }
@@ -90,7 +115,7 @@ class RoutingTest {
     @Test
     fun `sheet size was not set - 422 validation error`() {
         withTestApplication(Application::main) {
-            val response = postCall<CuttingProgramResponse>(
+           postCall<CuttingProgramResponse>(
                 endpoint = endpoint,
                 body = CuttingProgramRequest(boxSize = BoxSizeDto(1, 1)),
                 expectedStatus = UnprocessableEntity
@@ -110,8 +135,12 @@ class RoutingTest {
     }
 }
 
-private inline fun <reified V> TestApplicationEngine.postCall(endpoint: String, body: Any, expectedStatus: HttpStatusCode = OK): V {
-    val mapper =  ObjectMapper()
+private inline fun <reified V> TestApplicationEngine.postCall(
+    endpoint: String,
+    body: Any,
+    expectedStatus: HttpStatusCode = OK
+): V {
+    val mapper = ObjectMapper()
     val response = handleRequest(Post, endpoint) {
         addHeader(ContentType, Json.toString())
         addHeader(Accept, Json.toString())
@@ -128,5 +157,3 @@ private fun assertErrorResponse(response: CuttingProgramResponse) {
     assertNull(response.amount)
     assertNull(response.program)
 }
-
-
