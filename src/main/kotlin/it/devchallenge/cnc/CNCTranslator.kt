@@ -9,6 +9,9 @@ import it.devchallenge.cnc.CommandType.STOP
 import it.devchallenge.cnc.CommandType.UP
 import java.awt.Point
 
+/*
+Responsible for converting box contours into the list of CNC commands.
+ */
 data class CNCTranslator(
     val sheet: Sheet,
     val contours: List<BoxContour>

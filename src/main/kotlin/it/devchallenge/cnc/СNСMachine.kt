@@ -6,6 +6,9 @@ import it.devchallenge.Sheet
 
 data class CNCProgram(val amount: Int, val commands: List<Command>)
 
+/*
+Fill sheet layout with box contours and return specific program to execute.
+ */
 class CNCMachine(
     private val box: Box,
     private val sheet: Sheet
